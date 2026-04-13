@@ -56,8 +56,10 @@ router.post('/:conversationId/messages', async (req, res) => {
     const windowExpired = !lastInbound || (Date.now() - new Date(lastInbound).getTime()) >= 23 * 60 * 60 * 1000;
 
     if (windowExpired) {
+      console.log(`24h window BLOCKED: conversation=${req.params.conversationId}, lastInbound=${lastInbound}`);
       return res.status(400).json({ error: '24h window expired', windowExpired: true });
     }
+    console.log(`24h window OK: conversation=${req.params.conversationId}, lastInbound=${lastInbound}`);
 
     const message = await MessageService.sendMessage({
       conversationId: req.params.conversationId,

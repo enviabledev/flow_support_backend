@@ -62,7 +62,14 @@ const MessageModel = {
   },
 
   async updateStatus(id, status) {
-    await pool.query('UPDATE messages SET status = $1 WHERE id = $2', [status, id]);
+    // Atomic priority enforcement — prevents race conditions between concurrent webhooks.
+    // Only update if the new status has higher priority than the current one.
+    const PRIORITY_SQL = "CASE status WHEN 'queued' THEN 0 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 WHEN 'failed' THEN 4 WHEN 'undelivered' THEN 5 ELSE -1 END";
+    const NEW_PRIORITY_SQL = `CASE $1 WHEN 'queued' THEN 0 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 WHEN 'failed' THEN 4 WHEN 'undelivered' THEN 5 ELSE -1 END`;
+    await pool.query(
+      `UPDATE messages SET status = $1 WHERE id = $2 AND (${NEW_PRIORITY_SQL}) > (${PRIORITY_SQL})`,
+      [status, id]
+    );
     return this.findById(id);
   },
 

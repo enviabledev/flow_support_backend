@@ -26,6 +26,7 @@ const ConversationModel = {
         ct.phone_number, ct.display_name, ct.profile_image_url,
         s.name as assigned_to_name,
         lm.direction as last_message_direction,
+        lm.status as last_message_status,
         ls.name as last_message_sender_name,
         CASE WHEN sc.id IS NOT NULL THEN true ELSE false END as is_starred
       FROM conversations c
