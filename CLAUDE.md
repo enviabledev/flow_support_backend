@@ -75,16 +75,17 @@ test/
 ```
 
 ## Server
-- IP: `52.208.133.222`
-- SSH: `ssh -i ~/.ssh/enviable-key.pem ec2-user@52.208.133.222`
-- Docker Compose at `~/enviable-whatsapp/`
-- Restart API: `cd ~/enviable-whatsapp && docker-compose restart api`
+- AWS EC2 instance running Docker Compose
+- SSH key at `~/.ssh/enviable-key.pem`
+- Docker Compose at `~/enviable-whatsapp/` on server
+- Restart API: `docker-compose restart api`
 - View logs: `docker-compose logs --tail=50 api`
-- DB shell: `docker-compose exec -T db psql -U enviable_admin -d enviable_whatsapp`
-- Deploy a file: `scp -i ~/.ssh/enviable-key.pem <local_path> ec2-user@52.208.133.222:~/enviable-whatsapp/backend/<remote_path>` then restart
+- DB shell: `docker-compose exec -T db psql -U <user> -d <db>` (credentials in docker-compose.yml on server)
+- Deploy a file: `scp -i ~/.ssh/enviable-key.pem <local_path> ec2-user@<server_ip>:~/enviable-whatsapp/backend/<remote_path>` then restart
+- Server IP and credentials are in Terraform outputs / .env (not committed)
 
 ## Database
-- PostgreSQL, user: `enviable_admin`, db: `enviable_whatsapp`, password in docker-compose.yml
+- PostgreSQL, credentials in docker-compose.yml on server (not committed)
 - Messages status CHECK: `queued, sent, delivered, read, failed, undelivered`
 - `last_inbound_at` column on conversations tracks 24h window
 - `message_status_log` table logs every Twilio webhook for auditing
@@ -106,4 +107,4 @@ test/
 ## Twilio Webhooks
 - Incoming: `POST /webhooks/twilio/incoming` — receives messages from WhatsApp
 - Status: `POST /webhooks/twilio/status` — receives delivery status updates
-- Configure in Twilio console: `http://52.208.133.222/webhooks/twilio/incoming` and `http://52.208.133.222/webhooks/twilio/status`
+- Configure in Twilio console with `<server_url>/webhooks/twilio/incoming` and `<server_url>/webhooks/twilio/status`
