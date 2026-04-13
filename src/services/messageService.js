@@ -173,7 +173,13 @@ const MessageService = {
     const message = await MessageModel.findByTwilioSid(messageSid);
     if (!message) return null;
 
-    await MessageModel.updateStatus(message.id, status);
+    // Enforce status progression — never let a lower-priority status overwrite a higher one.
+    // Terminal statuses (delivered, read, failed, undelivered) should not be overwritten by sent/queued.
+    const STATUS_PRIORITY = { queued: 0, sent: 1, delivered: 2, read: 3, failed: 4, undelivered: 5 };
+    const currentPriority = STATUS_PRIORITY[message.status] ?? -1;
+    const newPriority = STATUS_PRIORITY[status] ?? -1;
+
+    // Always log the webhook for auditing
     await MessageModel.createStatusLog({
       id: uuidv4(),
       message_id: message.id,
@@ -182,7 +188,11 @@ const MessageService = {
       error_message: errorMessage
     });
 
-    SocketService.emitMessageStatus(message.id, status);
+    // Only update the message status if the new status is higher priority
+    if (newPriority > currentPriority) {
+      await MessageModel.updateStatus(message.id, status);
+      SocketService.emitMessageStatus(message.id, status);
+    }
 
     return MessageModel.findById(message.id);
   }
