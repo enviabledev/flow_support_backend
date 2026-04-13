@@ -1,0 +1,63 @@
+# ============================================================================
+# docker-compose.yml -- Local development environment
+# Run: docker compose up
+# This gives you the backend + PostgreSQL running locally
+# ============================================================================
+
+services:
+
+  # ---- PostgreSQL Database ----
+  db:
+    image: postgres:16-alpine
+    container_name: enviable-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: enviable_whatsapp
+      POSTGRES_USER: enviable_admin
+      POSTGRES_PASSWORD: localdev123
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enviable_admin -d enviable_whatsapp"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ---- Backend API ----
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: enviable-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: UTC
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: enviable_whatsapp
+      DB_USER: enviable_admin
+      DB_PASSWORD: localdev123
+      WEBHOOK_BASE_URL: https://tracheoscopic-kermit-unforecast.ngrok-free.dev
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount source code for hot reload during development
+      - ./backend/src:/app/src
+      - uploads:/app/uploads
+    # Use nodemon for auto-restart on file changes
+    command: npx nodemon src/index.js
+
+volumes:
+  pgdata:
+  uploads:
