@@ -74,7 +74,14 @@ const MessageModel = {
   },
 
   async updateTwilioSid(id, twilioSid, status) {
-    await pool.query('UPDATE messages SET twilio_sid = $1, status = $2 WHERE id = $3', [twilioSid, status, id]);
+    // SID write is unconditional, but status write applies the same priority ladder as updateStatus
+    // — otherwise this can race against status webhooks and downgrade an already-delivered/read message.
+    const PRIORITY_SQL = "CASE status WHEN 'queued' THEN 0 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 WHEN 'failed' THEN 4 WHEN 'undelivered' THEN 5 ELSE -1 END";
+    const NEW_PRIORITY_SQL = "CASE $2 WHEN 'queued' THEN 0 WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 WHEN 'failed' THEN 4 WHEN 'undelivered' THEN 5 ELSE -1 END";
+    await pool.query(
+      `UPDATE messages SET twilio_sid = $1, status = CASE WHEN (${NEW_PRIORITY_SQL}) > (${PRIORITY_SQL}) THEN $2 ELSE status END WHERE id = $3`,
+      [twilioSid, status, id]
+    );
     return this.findById(id);
   },
 
